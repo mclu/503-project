@@ -1,0 +1,88 @@
+---
+title: "STATS 503 Group Project"
+subtitle: "How will the Trump tweets affect daily stock prices?"
+author: "Group 14 - Xiaolin Cao, Ting-Wei Lin, Ming-Chen Lu, Suzy McTaggart"
+date: "`r format.Date(Sys.Date(), '%B %d, %Y')`"
+geometry: "left = 2cm, right = 2cm, top = 2cm, bottom = 2cm"
+output: 
+  html_document:
+    code_folding: hide
+    toc: yes
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(message = FALSE, echo = TRUE, warning = FALSE, 
+                      result = "asis", cache = TRUE)
+```
+
+```{r tweets}
+# Library
+library(tidyverse)
+theme_set(theme_bw())
+
+# Read in data
+setwd("/Users/Amy/Desktop/Stat503/Group_proj")
+tweets = read.csv("./data/trumptweets.csv")
+col = c("content", "date", "retweets", "favorites")
+tweets = tweets[col]
+tweets$day = as.Date(tweets$date, format = "%Y-%m-%d")
+new_id = data.frame(day = unique(tweets$day), new_id = 1:length(unique(tweets$day)))
+tweets = inner_join(new_id, tweets, by = "day")
+```
+
+# Data Exploration
+
+1. What time of day the tweets occur?
+
+```{r , dependson = "tweets"}
+library(lubridate)
+library(scales)
+tweets %>%
+  count(hour = hour(date)) %>%
+  mutate(percent = n / sum(n)) %>%
+  ggplot(aes(x = hour, y = percent)) +
+  geom_line() +
+  scale_y_continuous(labels = percent_format()) +
+  labs(x = "Hour of day (EST)",
+       y = "% of tweets")
+```
+
+# Data Preprocessing
+Difference in the *content*?
+
+Dividing into individual words using the `unnest_tokens` function (see [this vignette](https://cran.r-project.org/web/packages/tidytext/vignettes/tidytext.html) for more), and removing some common "stopwords"[^regex].
+
+```{r tweet_words, dependson = "tweets"}
+library(tidytext)
+
+reg <- "([^A-Za-z\\d#@']|'(?![A-Za-z\\d#@]))"
+tweets_words = tweets %>%
+  mutate(
+    text = str_remove_all(content,
+                          "https?://[A-Za-z\\d///.]+|[//\\d]+|\"+|/<+|/>+|//.+&amp+")
+    ) %>%
+  unnest_tokens(word, text, token = "regex", pattern = reg) %>%
+  filter(!word %in% stop_words$word, str_detect(word, "[a-z]"))
+```
+
+What were the most common words in Trump's tweets overall?
+
+```{r tweets_words_plot, dependson = "tweets_words", fig.height = 6, fig.width = 8, echo = FALSE}
+tweets_words %>%
+  count(word, sort = TRUE) %>%
+  head(25) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_bar(stat = "identity") +
+  ylab("Occurrences") + coord_flip()
+```
+
+A few observations:
+
+# References
+- Sentiment analysis of Trump's tweets with R https://blog.revolutionanalytics.com/2016/08/sentiment-analysis-of-trumps-tweets-with-r.html
+
+- https://github.com/dgrtwo/dgrtwo.github.com/blob/master/_R/2016-08-09-trump-tweets.Rmd
+
+
+
