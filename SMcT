@@ -1,0 +1,45 @@
+library(dplyr)
+library(tidyr)
+library(corrplot)
+library(ggplot2)
+library(knitr)
+
+#Read in Data Sets ----
+setwd("C:/Users/sweeneys/Desktop/")
+dat = read.csv("trumpmin.csv")
+head(dat)
+
+#Data subsets ----
+datred <- dat[c(-2,-6)]
+datred =datred[complete.cases(datred),]
+head(datred)
+datless <- complete.cases(datred[c(-1,-8,-9,-10)])
+datless = datless[complete.cases(datless),]
+head(datless)
+
+#Plots ----
+pairs(datless,col=c("blue","green","red")[dat$presidency])
+boxplot(datred$notweets ~ datred$presidency,main="Number of Daily Tweets by Presidency status",ylab="# of tweets")
+boxplot(datred$ss_min ~ datred$presidency,main="Minimum Sentiment Score by Presidency status",ylab="Sentiment score")
+boxplot(datred$ss_max ~ datred$presidency,main="Maximum Sentiment Score by Presidency status",ylab="Sentiment score")
+boxplot(datred$ss_compound ~ datred$presidency,main="Compound Sentiment Score by Presidency status",ylab="Sentiment score")
+# plots suggest not much difference between tweeting habits by presidency status but points to some outliers in number of tweets per day
+
+# Logistic Regression 1 day ----
+mod_log = glm(datred$delta_1day ~ datred$notweets + datred$retweets + datred$favorites + datred$ss_min + datred$ss_max + datred$ss_compound +datred$presidency ,data = datred, family = binomial)
+summary(mod_log)
+
+# Logistic Regression 2 day ----
+mod_log2 = glm(datred$delta_2day ~ datred$notweets + datred$retweets + datred$favorites + datred$ss_min + datred$ss_max + datred$ss_compound +datred$presidency ,data = datred, family = binomial)
+summary(mod_log2)
+
+mod_log4 = glm(datred$delta_2day ~ datred$retweets + datred$favorites + datred$ss_min + datred$ss_max +datred$presidency ,data = datred, family = binomial)
+summary(mod_log4)
+
+mod_log5 = glm(datred$delta_2day ~ datred$presidency ,data = datred, family = binomial)
+summary(mod_log5)
+#Presidency Status (i.e. date period is not significant on its own)
+
+mod_log6 = glm(datred$delta_2day ~ datred$retweets + datred$favorites + datred$ss_max +datred$presidency ,data = datred, family = binomial)
+summary(mod_log6)
+#Presidency status drops out of being significant when the ss_min is removed - suggests significant interaction between presidency status and ss_min?
